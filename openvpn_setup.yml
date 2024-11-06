@@ -1,0 +1,76 @@
+- name: Install and configure OpenVPN
+  hosts: openvpn_balancers
+  become: yes
+  vars:
+    server_config_map:
+      37.139.43.171: server1.conf
+      95.163.213.31: server2.conf
+      213.219.212.190: server3.conf
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install OpenVPN and dependencies
+      apt:
+        name:
+          - openvpn
+          - easy-rsa
+          - iptables
+          - iptables-persistent
+        state: present
+
+    - name: Create OpenVPN configuration directory
+      file:
+        path: /etc/openvpn
+        state: directory
+        mode: '0755'
+
+    - name: Copy OpenVPN configuration files
+      copy:
+        src: "~/openvpn-config/{{ server_config_map[inventory_hostname] }}"
+        dest: /etc/openvpn/server.conf
+        mode: '0644'
+
+    - name: Copy OpenVPN CA certificate
+      copy:
+        src: ~/openvpn-config/ca.crt
+        dest: /etc/openvpn/ca.crt
+        mode: '0644'
+
+    - name: Copy OpenVPN server certificate
+      copy:
+        src: ~/openvpn-config/server.crt
+        dest: /etc/openvpn/server.crt
+        mode: '0644'
+
+    - name: Copy OpenVPN server key
+      copy:
+        src: ~/openvpn-config/server.key
+        dest: /etc/openvpn/server.key
+        mode: '0600'
+
+    - name: Copy OpenVPN Diffie-Hellman parameters
+      copy:
+        src: ~/openvpn-config/dh.pem
+        dest: /etc/openvpn/dh.pem
+        mode: '0644'
+
+    - name: Copy OpenVPN TLS authentication key
+      copy:
+        src: ~/openvpn-config/ta.key
+        dest: /etc/openvpn/ta.key
+        mode: '0600'
+
+    - name: Set correct ownership for OpenVPN files
+      file:
+        path: /etc/openvpn
+        owner: root
+        group: root
+        recurse: yes
+
+    - name: Start and enable OpenVPN service
+      systemd:
+        name: openvpn@server
+        enabled: yes
+        state: started
